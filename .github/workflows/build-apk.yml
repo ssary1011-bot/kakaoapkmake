@@ -1,0 +1,69 @@
+name: Build Kakao Theme APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Apply theme payload (if present)
+        run: |
+          if [ -f "theme-payload.zip" ]; then
+            echo "Found theme-payload.zip, extracting into src/main/theme ..."
+            rm -rf src/main/theme
+            mkdir -p src/main/theme
+            unzip -o theme-payload.zip -d /tmp/theme-payload
+            # 웹앱이 만든 zip은 src/main/theme/... 구조로 되어 있음 -> 그대로 복사
+            if [ -d /tmp/theme-payload/src/main/theme ]; then
+              cp -r /tmp/theme-payload/src/main/theme/. src/main/theme/
+            else
+              cp -r /tmp/theme-payload/. src/main/theme/
+            fi
+          else
+            echo "No theme-payload.zip found, building with existing src/main/theme as-is."
+          fi
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find . -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "Found APK at: $APK_PATH"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kakao-theme-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          retention-days: 30
+
+      - name: Create release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Theme APK build #${{ github.run_number }}"
+          files: ${{ steps.find_apk.outputs.apk_path }}
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
