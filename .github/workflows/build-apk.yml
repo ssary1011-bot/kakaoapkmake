@@ -1,26 +1,21 @@
 name: Build Kakao Theme APK
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-
       - name: Apply theme payload (if present)
         run: |
           if [ -f "theme-payload.zip" ]; then
@@ -37,27 +32,25 @@ jobs:
           else
             echo "No theme-payload.zip found, building with existing src/main/theme as-is."
           fi
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
-
-      - name: Find APK
+      - name: Find APK and rename with build number
         id: find_apk
         run: |
-          APK_PATH=$(find . -name "*.apk" | head -n 1)
-          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          echo "Found APK at: $APK_PATH"
-
+          RAW_APK_PATH=$(find . -name "*.apk" | head -n 1)
+          echo "Found APK at: $RAW_APK_PATH"
+          RENAMED_PATH="$(dirname "$RAW_APK_PATH")/kakao-theme-build-${{ github.run_number }}.apk"
+          cp "$RAW_APK_PATH" "$RENAMED_PATH"
+          echo "apk_path=$RENAMED_PATH" >> "$GITHUB_OUTPUT"
+          echo "Renamed APK to: $RENAMED_PATH"
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: kakao-theme-apk
           path: ${{ steps.find_apk.outputs.apk_path }}
           retention-days: 30
-
       - name: Create release with APK
         uses: softprops/action-gh-release@v2
         with:
