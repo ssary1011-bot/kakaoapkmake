@@ -23,7 +23,6 @@ jobs:
             rm -rf src/main/theme
             mkdir -p src/main/theme
             unzip -o theme-payload.zip -d /tmp/theme-payload
-            # 웹앱이 만든 zip은 src/main/theme/... 구조로 되어 있음 -> 그대로 복사
             if [ -d /tmp/theme-payload/src/main/theme ]; then
               cp -r /tmp/theme-payload/src/main/theme/. src/main/theme/
             else
@@ -32,10 +31,22 @@ jobs:
           else
             echo "No theme-payload.zip found, building with existing src/main/theme as-is."
           fi
+      - name: Set unique app label for this build
+        run: |
+          STRINGS_FILE="src/main/res/values/strings.xml"
+          if [ -f "$STRINGS_FILE" ]; then
+            sed -i -E "s|(<string name=\"app_name\">)[^<]*(</string>)|\1카카오테마 빌드 ${{ github.run_number }}\2|" "$STRINGS_FILE"
+            echo "Updated app_name in $STRINGS_FILE"
+          else
+            echo "strings.xml not found at $STRINGS_FILE, skipping app label update."
+          fi
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          ./gradlew assembleDebug --no-daemon \
+            -PappId="com.kakao.talk.theme.b${{ github.run_number }}" \
+            -PbuildNumber=${{ github.run_number }}
       - name: Find APK and rename with build number
         id: find_apk
         run: |
@@ -48,7 +59,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kakao-theme-apk
+          name: kakao-theme-apk-${{ github.run_number }}
           path: ${{ steps.find_apk.outputs.apk_path }}
           retention-days: 30
       - name: Create release with APK
