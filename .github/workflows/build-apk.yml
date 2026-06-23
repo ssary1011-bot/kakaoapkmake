@@ -17,6 +17,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Apply theme payload (if present)
+        id: payload
         run: |
           if [ -f "theme-payload.zip" ]; then
             echo "Found theme-payload.zip, extracting into src/main/theme ..."
@@ -28,9 +29,33 @@ jobs:
             else
               cp -r /tmp/theme-payload/. src/main/theme/
             fi
+
+            # 버그수정: 이전에는 ZIP 루트의 app-config.json(테마 메이커 도구가 사용자가 입력한
+            # applicationId를 기록해둔 파일)을 아무도 읽지 않아서, 빌드 시 항상
+            # com.kakao.talk.theme.b<run_number>로 덮어써버리는 문제가 있었음
+            # (도구가 만든 BUILD_GUIDE.txt에는 "자동으로 적용된다"고 안내했지만 실제로는 무시됐음).
+            # 이제 app-config.json이 있으면 그 안의 applicationId 값을 실제로 사용한다.
+            CONFIG_PATH="/tmp/theme-payload/app-config.json"
+            if [ -f "$CONFIG_PATH" ]; then
+              APP_ID=$(node -e "try { const c = require('$CONFIG_PATH'); if (c.applicationId) { console.log(c.applicationId); } } catch(e) {}")
+            fi
+            # 형식 검증: Java/Kotlin 패키지명 규칙(.으로 구분된 각 세그먼트가 영문자로 시작, 영문/숫자/밑줄만 허용)에
+            # 맞지 않으면(예: 구버전 ZIP, 손상된 app-config.json) Gradle 빌드가 그대로 깨지므로 안전한 기본값으로 폴백.
+            if [ -n "$APP_ID" ] && ! [[ "$APP_ID" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]; then
+              echo "app-config.json의 applicationId 형식이 올바르지 않음: '$APP_ID' → 기본값으로 폴백"
+              APP_ID=""
+            fi
+            if [ -z "$APP_ID" ]; then
+              echo "app-config.json 없음/누락/형식오류 → 빌드 번호 기반 기본값 사용"
+              APP_ID="com.kakao.talk.theme.b${{ github.run_number }}"
+            else
+              echo "app-config.json에서 applicationId 읽음: $APP_ID"
+            fi
           else
             echo "No theme-payload.zip found, building with existing src/main/theme as-is."
+            APP_ID="com.kakao.talk.theme.b${{ github.run_number }}"
           fi
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
       - name: Set unique app label for this build
         run: |
           STRINGS_FILE="src/main/res/values/strings.xml"
@@ -45,7 +70,7 @@ jobs:
       - name: Build debug APK
         run: |
           ./gradlew assembleDebug --no-daemon \
-            -PappId="com.kakao.talk.theme.b${{ github.run_number }}" \
+            -PappId="${{ steps.payload.outputs.app_id }}" \
             -PbuildNumber=${{ github.run_number }}
       - name: Find APK and rename with build number
         id: find_apk
