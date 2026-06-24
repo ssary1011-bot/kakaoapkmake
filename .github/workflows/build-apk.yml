@@ -72,6 +72,8 @@ jobs:
           else
             echo "strings.xml not found at $STRINGS_FILE, skipping app label update."
           fi
+      - name: Clean apkcreate folder
+        run: rm -f apkcreate/*.apk
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build debug APK
