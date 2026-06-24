@@ -31,7 +31,7 @@ allprojects {
                 applicationId = (project.findProperty("appId") as String?) ?: "com.kakao.talk.theme.template"
                 sourceSets {
                     getByName("main") {
-                        res.srcDirs("src/main/theme", "src/main/theme-adv")
+                        res.srcDirs("src/main/res", "src/main/theme", "src/main/theme-adv")
                     }
                 }
             }
