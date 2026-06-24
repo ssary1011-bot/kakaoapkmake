@@ -82,7 +82,16 @@ jobs:
       - name: Find APK and rename with theme name
         id: find_apk
         run: |
-          RAW_APK_PATH=$(find . -name "*.apk" | head -n 1)
+          # debug/release 둘 다 탐색, 못 찾으면 전체 탐색으로 폴백
+          RAW_APK_PATH=$(find app/build/outputs/apk -name "*.apk" 2>/dev/null | head -n 1)
+          if [ -z "$RAW_APK_PATH" ]; then
+            echo "⚠️  app/build/outputs/apk 에서 못 찾음 → 전체 탐색 시도"
+            RAW_APK_PATH=$(find . -path "*/build/outputs/apk/*.apk" 2>/dev/null | head -n 1)
+          fi
+          if [ -z "$RAW_APK_PATH" ]; then
+            echo "❌ APK를 찾을 수 없습니다. Gradle 빌드 출력 경로를 확인하세요."
+            exit 1
+          fi
           echo "Found APK at: $RAW_APK_PATH"
           THEME_NAME="${{ steps.payload.outputs.theme_name }}"
           mkdir -p apkcreate
