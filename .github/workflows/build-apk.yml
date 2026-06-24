@@ -33,6 +33,7 @@ jobs:
             # 런처 아이콘: src/main/res/mipmap-* 도 복사 (app-icon이 있을 때만 생성됨)
             if [ -d /tmp/theme-payload/src/main/res ]; then
               echo "런처 아이콘 폴더 발견 → app/src/main/res/ 에 복사"
+              mkdir -p app/src/main/res
               cp -r /tmp/theme-payload/src/main/res/. app/src/main/res/
             fi
 
