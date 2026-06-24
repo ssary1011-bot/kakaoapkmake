@@ -85,7 +85,8 @@ jobs:
           RAW_APK_PATH=$(find . -name "*.apk" | head -n 1)
           echo "Found APK at: $RAW_APK_PATH"
           THEME_NAME="${{ steps.payload.outputs.theme_name }}"
-          RENAMED_PATH="$(dirname "$RAW_APK_PATH")/${THEME_NAME}.apk"
+          mkdir -p apkcreate
+          RENAMED_PATH="apkcreate/${THEME_NAME}.apk"
           cp "$RAW_APK_PATH" "$RENAMED_PATH"
           echo "apk_path=$RENAMED_PATH" >> "$GITHUB_OUTPUT"
           echo "Renamed APK to: $RENAMED_PATH"
