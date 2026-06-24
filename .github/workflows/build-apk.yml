@@ -78,8 +78,6 @@ jobs:
           else
             echo "strings.xml not found at $STRINGS_FILE, skipping app label update."
           fi
-      - name: Clean apkcreate folder
-        run: rm -f apkcreate/*.apk
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
       - name: Build debug APK
@@ -120,5 +118,14 @@ jobs:
           name: "${{ steps.payload.outputs.theme_name }} build #${{ github.run_number }}"
           files: ${{ steps.find_apk.outputs.apk_path }}
           prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit APK to apkcreate folder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apkcreate/
+          git commit -m "[skip ci] APK: ${{ steps.payload.outputs.theme_name }} (build #${{ github.run_number }})" || echo "Nothing to commit"
+          git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
